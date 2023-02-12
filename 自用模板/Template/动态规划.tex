@@ -1,0 +1,350 @@
+\section{动态规划}
+
+\subsection{LIS \& LCS \& LCIS}
+\begin{lstlisting}
+/* 
+LIS O(nlogn)实现 
+第一问求最长单调不上升子序列
+第二问求最长单调上升子序列
+
+input: 389 207 155 300 299 170 158 65
+output: 6 2
+
+f[i]代表当最长单调子序列长度为i时最优的末尾元素
+len为最长单调子序列的长度
+以最长不上升子序列为例
+①当a[i] <= f[len] 说明可以接在后面
+②当a[i] > f[len] 在f中找到第一个小于a[i]的数 并替换为a[i]
+*/
+
+int LIS() {
+	while(cin >> a[++n]) ; n--;
+	for(int i = 1; i <= n; i++) cout << a[i] << " "; cout << endl;
+	printf("%d\n%d", LIS_Solve1(), LIS_Solve2());
+	//problem1
+	int len = 1; f[1] = a[1];
+	for(int i = 2; i <= n; i++) {
+		if(a[i] <= f[len]) f[++len] = a[i];
+		else f[upper_bound(f + 1, f + 1 + len, a[i], greater<int>() ) - f] = a[i];
+	}
+	return len;
+	//problem2
+	int len = 1; f[1] = a[1];
+	for(int i = 2; i <= n; i++) {
+		if(a[i] > f[len]) f[++len] = a[i];
+		else f[lower_bound(f + 1, f + 1 + len, a[i]) - f] = a[i];
+	}
+	return len;
+}
+
+int LCS() {
+	scanf("%s%s", S + 1, T + 1);
+	int sLen = strlen(S + 1), tLen = strlen(T + 1);
+	for(int i = 1; i <= sLen; i++) {
+		for(int j = 1; j <= tLen; j++) {
+			if(S[i] == T[j]) dp[i][j] = dp[i - 1][j - 1] + 1;
+			else dp[i][j] = max(dp[i - 1][j], dp[i][j - 1]);
+		}
+	}
+	// 记录路径 
+	int p = 0, px = sLen, py = tLen;
+	while(px != 0 && py != 0) {
+		if(dp[px][py] == dp[px][py - 1]) py--;
+		else if(dp[px][py] == dp[px - 1][py]) px--;
+		else if(dp[px][py] == dp[px - 1][py - 1] + 1) {
+			ans[++p] = S[px];
+			px--, py--;
+		}
+	}
+	for(int i = p; i >= 1; i--) printf("%c", ans[i]);	
+}
+	
+void LCIS() { 	// O(nm)
+	a[0] = b[0] = -1;
+	scanf("%d", &n); for(int i = 1; i <= n; i++) scanf("%d", &a[i]);
+	scanf("%d", &m); for(int i = 1; i <= m; i++) scanf("%d", &b[i]);	
+	
+	for(int i = 1; i <= n; i++) {
+		int curmax = dp[i - 1][0] + 1, curpos = 0;
+		for(int j = 1; j <= m; j++) {
+			if(a[i] == b[j]) {
+				if(curmax > dp[i][j]) dp[i][j] = curmax, pre[i][j] = curpos;
+			} else dp[i][j] = dp[i - 1][j], pre[i][j] = pre[i - 1][j];
+			
+			if(b[j] < a[i] && curmax < dp[i - 1][j] + 1) curmax = dp[i - 1][j] + 1, curpos = j;
+		}
+	}
+
+	int ans = 0, pos = 0;
+	for(int i = 1; i <= m; i++) if(ans < dp[n][i]) ans = dp[n][i], pos = i;
+	printf("%d\n", ans);
+	
+	while(pos) vec.push_back(b[pos]), pos = pre[n][pos];
+	reverse(vec.begin(), vec.end());
+	for(auto i : vec) printf("%d ", i);	
+}
+\end{lstlisting}
+
+\subsection{背包问题}
+\begin{lstlisting}
+/*
+N种物品 容量为V的背包 第i种物品的代价为w[i] 价值为v[i] 数量为m[i] 
+*/
+
+void Prework() {
+	dp[0] = 0;
+	for(int i = 1; i <= V; i++) {
+		//dp[i] = INF;	//要求必须装满背包 
+		dp[i] = 0;	//不一定要装满背包 
+	}
+}
+
+void ZeroOnePack() {	//01背包
+	Prework();
+	for(int i = 1; i <= N; i++) {
+		for(int j = V; j >= w[i]; j--) {
+			dp[j] = max(dp[j], dp[j - w[i]] + v[i]);
+		}
+	}
+}
+
+void CompletePack() {	//完全背包 
+	Prework();
+	for(int i = 1; i <= N; i++) {
+		for(int j = w[i]; j <= V; j++) {
+			dp[j] = max(dp[j], dp[j - w[i]] + v[i]);
+		}
+	}
+}
+
+void MultiplePack() {	//多重背包 利用二进制优化 
+	Prework();
+	
+	int cnt = 0;
+	for(int i = 1; i <= N; i++) {
+		int cur = 1;	//将cur个相同物品合并 
+		int cur_w, cur_v;
+		while(m[i] >= cur) {
+			cur_w = w[i] * cur;
+			cur_v = v[i] * cur;
+			for(int j = V; j >= cur_w; j--) {
+				dp[j] = max(dp[j], dp[j - cur_w] + cur_v);
+			}
+			m[i] -= cur;
+			cur <<= 1;	 
+		}
+		
+		cur_w = w[i] * m[i];
+		cur_v = v[i] * m[i];
+		for(int j = V; j >= cur_w; j--) {
+			dp[j] = max(dp[j], dp[j - cur_w] + cur_v);
+		}
+	}
+	
+}
+
+void MixedPack() {	//混合背包 
+	for(int i = 1; i <= n; i++) {
+		if(m[i] == 0) {	
+			//代表无限个 采用完全背包策略 
+			for(int j = w[i]; j <= V; j++) {
+				dp[j] = max(dp[j], dp[j - w[i]] + v[i]);
+			}	
+		} else if(m[i] == 1) {	
+			//01背包策略 
+			for(int j = V; j >= w[i]; j--) {
+				dp[j] = max(dp[j], dp[j - w[i]] + v[i]);
+			}			
+		} else if(m[i] > 1) {		
+			//多重背包策略 
+			int cur = 1;	//将cur个相同物品合并 
+			int cur_w, cur_v;
+			while(m[i] >= cur) {
+				cur_w = w[i] * cur;
+				cur_v = v[i] * cur;
+				for(int j = V; j >= cur_w; j--) {
+					dp[j] = max(dp[j], dp[j - cur_w] + cur_v);
+				}
+				m[i] -= cur;
+				cur <<= 1;	 
+			}
+		
+			cur_w = w[i] * m[i];
+			cur_v = v[i] * m[i];
+			for(int j = V; j >= cur_w; j--) {
+				dp[j] = max(dp[j], dp[j - cur_w] + cur_v);
+			}
+		}
+	}
+}
+
+void TwoDimensionPack() {	
+	/*
+	二维费用背包问题
+	设第二维容量为T 第i个物品的代价为g[i]
+	
+	01背包下变量j和k采用逆序循环
+	完全背包下采用顺序循环
+	多重背包时拆分物品
+	*/
+	
+	for(int i = 1; i <= n; i++) {	//二维01背包 
+		for(int j = V; j >= w[i]; j--) {
+			for(int k = T; k >= g[i]; k--) {
+				dp[j][k] = max(dp[j][k], dp[j - w[i]][k - g[i]]);
+			}
+		}
+	}
+	 
+} 
+
+void DivideGroupPack() {	//分组背包
+	/*
+	这些物品被划分为若干组，每组中的物品互相冲突，最多选一件。
+	求解将哪些物品装入背包可使这些物品的费用总和不超过背包容量，且价值总和最大。
+	
+	设第i件物品的类型为type[i]，共有k个类型。
+	每组物品有若干种策略：是选择本组的某一件，还是一件都不选。
+	设dp[i][j]表示前i组物品花费代价j所获得的最大价值
+	dp[i][j] = max(dp[i - 1][j], dp[i - 1][j - w[cur]] + v[cur]);
+	cur代表属于组别i的当前物品
+	可用滚动数组优化 优化时注意三层循环的顺序不能更改 
+	*/ 
+	
+	for(int i = 1; i <= N; i++) Items[ type[i] ].push_back(i);	//进行分类 
+	
+	for(int i = 1; i <= K; i++) {
+		int num = Items[i].size();
+		for(int j = V; j >= 0; j--) {
+			for(int k = 0; k < num; k++) {
+				//对k的循环要在对j的循环里面 这样能保证每个组别最多选一个物品 
+                int cur = Items[i][k];
+				if(w[cur] > j) continue;
+				dp[j] = max(dp[j], dp[j - w[cur]] + v[cur]);
+			}
+		}
+	}
+	
+}
+
+void PackOnTree(int u) {	//树上背包 利用上下界优化 
+	Size[u] = 1;
+	for(int i = 0; i < G[u].size(); i++) {
+		int v = G[u][i];
+		PackOnTree(v);
+		for(int j = min(m + 1, Size[u] + Size[v]); j >= 0; j--) {
+			for(int k = max(1, j - Size[u]); k < j && k <= Size[v]; k++) {
+				f[u][j] = max(f[u][j], f[u][j - k] + f[v][k]);
+			}
+		}
+		Size[u] += Size[v];
+	}
+}
+
+void RollbackPack() {	//回退背包
+	// select
+	for(int i = son[u]; i >= 1; i--) {
+		for(int j = sze[u]; j >= sze[v]; j--) f[i][j] = (f[i][j] + f[i - 1][j - sze[v] ]) % MOD;
+	}
+	
+	// delete
+	for(int i = 1; i <= son[u]; i++) {
+		for(int j = sze[v]; j <= sze[u]; j++) f[i][j] = (f[i][j] - f[i - 1][j - sze[v] ] + MOD) % MOD;
+	} 
+}
+\end{lstlisting}
+
+
+\subsection{斜率优化}
+其一般形式为$b_i = min_{j<i}\{y_j-k_i x_j\}$或$b_i = max_{j<i}\{y_j-k_i x_j\}$
+\begin{lstlisting}
+int head, tail, Q[MAXN];
+int X(int i) {}
+int Y(int i) {}
+void Init() {}
+
+int Find(int k) {
+	int l = head, r = tail;
+	while(l < r) {
+		int mid = l + r + 1 >> 1;
+		int i = Q[mid - 1], j = Q[mid];
+		double slope = 1.0 * ( Y(j) - Y(i) ) / ( X(j) - X(i) );
+		// 求min 维护下凸包 
+		if(slope > 1.0 * k) r = mid - 1;
+		else l = mid;
+		// 求max 维护上凸包
+		if(slope < 1.0 * k) r = mid - 1;
+		else l = mid;
+	}
+	return Q[l];
+}
+
+bool Check(int i, int j, int k) {
+	double slope_ij = 1.0 * ( Y(j) - Y(i) ) / ( X(j) - X(i) );
+	double slope_jk = 1.0 * ( Y(j) - Y(k) ) / ( X(j) - X(k) );
+	return slope_jk > slope_ij;	// 求min 维护下凸包 
+	return slope_jk > slope_ij;	// 求max 维护上凸包 
+}
+
+void Solve() {
+	Init();
+	head = 1, tail = 0, Q[++tail] = 0;
+	for(int i = 1; i <= n; i++) {
+		int j = Find(K[i]);	// K[i]为斜率 
+		用j更新f[i];
+		while(head < tail && !Check(Q[tail - 1], Q[tail], i) ) --tail;
+		Q[++tail] = i;
+	}
+	return 0;
+}
+\end{lstlisting}
+
+\subsection{悬线法}
+\begin{lstlisting}
+/*
+悬线法的用途：针对求给定矩阵中满足某条件的极大矩阵，比如“面积最大的长方形、正方形”“周长最长的矩形”等等。适合障碍点较密集的情况。
+设给定一个n*m的矩形，其中存在障碍点若干。
+维护三个二维数组，left,right,up数组。
+left[i][j]: 代表从(i, j)能到达的最左位置 初始left[i][j] = j;
+right[i][j]: 代表从(i, j)能到达的最右位置 初始right[i][j] = j;
+up[i][j]: 代表从(i, j)向上扩展最长长度 初始up[i][j] = 1;
+*/
+
+void Solve() {
+	for(int i = 1; i <= n; i++) for(int j = 2; j <= m; j++) left[i][j] = right[i][j] = j, up[i][j] = 1;
+
+	for(int i = 1; i <= n; i++) {
+		for(int j = 2; j <= m; j++) if(map[i][j]和map[i][j - 1]不是障碍点) left[i][j] = left[i][j - 1];
+		for(int j = m - 1; j >= 1; j--) if(map[i][j]和map[i][j + 1]不是障碍点) right[i][j] = right[i][j + 1];
+	}
+	
+	int ans = 0;
+	for(int i = 1; i <= n; i++) {
+		for(int j = 1; j <= m; j++) {
+			if(map[i][j]和map[i - 1][j]都不是限制点) {
+				up[i][j] = up[i - 1][j] + 1;
+				left[i][j] = max(left[i][j], left[i - 1][j]);
+				right[i][j] = min(right[i][j], right[i - 1][j]);
+			}
+			int width = (right[i][j] - left[i][j] + 1);
+			ans = max(ans, width * up[i][j]); //求矩形
+		}
+	}
+}
+\end{lstlisting}
+
+\subsection{最大子段和}
+\begin{lstlisting}
+// 在数列的一维方向找到一个连续的子数列，使该子数列的和最大
+dp[i] = max(dp[i - 1] + a[i], a[i]);
+\end{lstlisting}
+
+\subsection{SOS\_DP}
+
+\begin{lstlisting}
+for(int i = 0; i < n; i++) {
+	for(int j = 0; j < (1 << n); j++) {
+		if((j >> i) & 1) f[j] += f[j ^ (1 << i)];
+	}
+}
+\end{lstlisting}

@@ -1,0 +1,462 @@
+\section{字符串}
+
+\subsection{字符串双哈希}
+\begin{lstlisting}
+#include<bits/stdc++.h>
+using namespace std;
+
+const int MAXN = 6e5 + 10;
+const int INF = 0x3f3f3f3f;
+
+namespace TwoHash {
+	#define fi first
+	#define se second
+	#define pii pair<int, int>
+	
+	pii Pow[MAXN], Inv[MAXN];
+	pii h[MAXN];
+	int n;
+	string S;
+		
+	const int BASE1 = 131;
+	const int BASE2 = 129;
+	const int MOD1 = 1e9 + 7;	
+	const int MOD2 = 998244353;
+	
+	int qpow(int a, int p, int MOD) {
+		a %= MOD, p %= MOD;
+	    int res = 1;
+	    while(p) {
+	    	if(p & 1) res = 1ll * res * a % MOD;
+	    	a = 1ll * a * a % MOD;
+	    	p >>= 1;
+		}
+ 	    return res;
+	}
+	
+	pii Hash(int c, int p) { return {1ll * c * Pow[p].fi % MOD1, 1ll * c * Pow[p].se % MOD2}; }
+	
+	pii Add(pii x, pii y) {
+		pii res = {0, 0};
+		res.fi = 1ll * (x.fi + y.fi) % MOD1;
+		res.se = 1ll * (x.se + y.se) % MOD2;
+		return res;
+	}
+	
+	pii Sub(pii x, pii y) {
+		pii res = {0, 0};
+		res.fi = 1ll * (x.fi - y.fi + MOD1) % MOD1;
+		res.se = 1ll * (x.se - y.se + MOD2) % MOD2;
+		return res;
+	}
+	
+	pii Mul(pii x, pii y) {
+		pii res = {0, 0};
+		res.fi = 1ll * x.fi * y.fi % MOD1;
+		res.se = 1ll * x.se * y.se % MOD2;
+		return res;
+	}
+	
+	pii Div(pii x, pii y) {
+		pii res = {0, 0};
+		res.fi = 1ll * x.fi * qpow(y.fi, MOD1 - 2, MOD1) % MOD1;
+		res.se = 1ll * x.se * qpow(y.se, MOD1 - 2, MOD1) % MOD1;
+		return res;
+	}
+	
+	pii HashVal(int l, int r) { return Mul( Sub(h[r], h[l - 1]), Inv[l - 1]); }
+	
+	void Init() {
+		Pow[0] = Inv[0] = {1, 1}; Inv[1] = {qpow(BASE1, MOD1 - 2, MOD1), qpow(BASE2, MOD2 - 2, MOD2)};
+		for(int i = 1; i <= MAXN - 5; i++) Pow[i] = Mul(Pow[i - 1], {BASE1, BASE2});
+		for(int i = 2; i <= MAXN - 5; i++) Inv[i] = Mul(Inv[i - 1], Inv[1]);	
+	}
+	
+	void Build(string T) {
+		n = T.length(); S = " " + T;
+		h[0] = {0, 0};
+		for(int i = 1; i <= n; i++) h[i] = Add(h[i - 1], Hash(S[i], i) );
+	}
+}
+
+signed main() 
+{
+	TwoHash::Init();
+	set<pii> Set;
+	int T; cin >> T;
+	while(T--) {
+		string S; cin >> S;
+		TwoHash::Build(S);
+		Set.insert( TwoHash::h[S.length()] );
+	}
+	cout << Set.size();
+	return 0;
+}
+
+\end{lstlisting}
+
+\subsection{Trie}
+\begin{lstlisting}
+int Hash(char ch) { return ch - 'a' + 1; }
+
+void Insert(string S) {
+	int u = 0;
+	for(auto i : S) {
+		if(!trie[u][Hash(i)]) trie[u][Hash(i)] = ++cnt;
+		u = trie[u][Hash(i)];
+	}
+	sum[u]++;
+}
+\end{lstlisting}
+
+\subsection{KMP}
+\begin{lstlisting}
+#include<bits/stdc++.h>
+
+using namespace std;
+
+const int MAXN = 1e6 + 5;
+
+char S1[MAXN], S2[MAXN];
+int l1, l2, pmt[MAXN], p;	//pmt数组(部分匹配表) 向右偏移一位为next数组 并让next[0] = -1
+
+int main()
+{
+	cin >> S1 + 1 >> S2 + 1;
+	l1 = strlen(S1 + 1), l2 = strlen(S2 + 1);
+	p = pmt[0] = 0;
+	for(int i = 2; i <= l2; i++) {
+		while(p && S2[p + 1] != S2[i]) p = pmt[p];
+		if(S2[p + 1] == S2[i]) p++;
+		pmt[i] = p;
+	}
+	p = 0;
+	for(int i = 1; i <= l1; i++) {
+		while(p && S2[p + 1] != S1[i]) p = pmt[p];
+		if(S2[p + 1] == S1[i]) p++;
+		if(p == l2) {
+			printf("%d\n", i - p + 1);
+			p = pmt[p];
+		}
+	}
+	for(int i = 1; i <= l2; i++) printf("%d ", pmt[i]);
+	return 0;
+}
+\end{lstlisting}
+
+\subsection{exKMP}
+\begin{lstlisting}
+#include<bits/stdc++.h>
+using namespace std;
+const int MAXN = (int)2e7 + 5;
+
+char S[MAXN], T[MAXN];
+int z[MAXN], lcp[MAXN];
+
+void Z_Function(char* T) {	// z[i] = lcp(s[i ... n-1], s)
+	int n = strlen(T);
+	z[0] = n;
+	int l = 0, r = 0;
+	
+	for(int i = 1; i < n; i++) {
+		if(i <= r) z[i] = min(z[i - l], r - i + 1);
+		while(i + z[i] < n && T[z[i]] == T[i + z[i]]) z[i]++;
+		if(i + z[i] - 1 > r) l = i, r = i + z[i] - 1;
+	}
+	
+	//for(int i = 0; i < n; i++) cout << z[i] << " "; cout << endl;
+}
+
+void exKMP(char* S, char* T) {
+	int sLen = strlen(S);
+	int tLen = strlen(T);
+	Z_Function(T);
+	
+	int p = 0;
+	while(S[p] == T[p] && p < min(sLen, tLen)) p++;
+	lcp[0] = p;
+	
+	int l = 0, r = 0;
+	for(int i = 1; i < sLen; i++) {
+		if(i <= r) lcp[i] = min(z[i - l], r - i + 1);
+		while(i + lcp[i] < sLen && lcp[i] < tLen && S[i + lcp[i]] == T[lcp[i]]) lcp[i]++;
+		if(i + lcp[i] - 1 > r) l = i, r = i + lcp[i] - 1;
+	}
+	
+	//for(int i = 0; i < sLen; i++) cout << lcp[i] << " "; cout << endl;
+}
+
+signed main()
+{
+	scanf("%s%s", S, T);
+	exKMP(S, T);
+	return 0;
+}
+
+/*
+input:
+aaaabaa
+aaaaa
+
+z function : {5 4 3 2 1}
+lcp function : {4 3 2 1 0 2 1} 
+*/
+\end{lstlisting}
+
+\subsection{Manacher}
+\begin{lstlisting}
+/*
+Manacher算法:
+先在两个字符串中插入某个字符('$') 避免分别处理奇回文和偶回文的情况
+设置两个指针maxR(前i个字符能回文扩展到的最右端) pos(前i个字符中哪个字符能回文扩展到最右端)
+
+每次扫描到第i个字符时
+①如果i<maxR,更新f[i] ②暴力拓展maxR(maxR从起点到终点且不会往回退) ③maxR增大时更新maxR和pos
+*/
+
+#include<bits/stdc++.h>
+using namespace std;
+
+const int MAXN = (int)1.1e7 + 5;
+char S[MAXN << 1], T[MAXN << 1];
+int f[MAXN << 1], n;
+
+void Manacher() {
+	T[0] = '#'; T[1] = '$';
+	for(int i = 1; i <= n; i++) T[i * 2] = S[i], T[i * 2 + 1] = '$';
+	n = n * 2 + 1;
+	for(int i = 0; i <= n; i++) S[i] = T[i];
+	
+	int maxR = 0, pos = 0;
+	for(int i = 1; i <= n; i++) {
+		if(i < maxR) f[i] = min(f[pos * 2 - i], maxR - i);
+		while(i - f[i] - 1 > 0 && i + f[i] + 1 <= n && S[i + f[i] + 1] == S[i - f[i] - 1]) f[i]++;
+		if(i + f[i] > maxR) maxR = i + f[i], pos = i;
+	}
+}
+
+int main()
+{
+	scanf("%s", S + 1); n = strlen(S + 1);
+	Manacher();
+	int ans = 0;
+	for(int i = 1; i <= n; i++) ans = max(ans, f[i]);
+	printf("%d", ans);
+	return 0;
+}
+\end{lstlisting}
+
+\subsection{最小最大表示法}
+\begin{lstlisting}
+/*
+S的最小表示：与S循环同构的所有字符串中字典序最小的字符串（最大表示同理） 
+*/
+int getMin(string S) {
+	int n = S.length(), i = 0, j = 1, k = 0;
+	while(i < n && j < n && k < n) {
+		if(S[(i + k) % n] == S[(j + k) % n]) k++;
+		else {
+			if(S[(i + k) % n] > S[(j + k) % n]) i = i + k + 1;
+			else j = j + k + 1;
+			
+			if(i == j) i++;
+			k = 0;
+		}
+	}
+	return min(i, j);
+}
+
+int getMax(string S) {
+  	int n = S.length(), i = 0, j = 1, k = 0;
+	while(i < n && j < n && k < n) {
+		if(S[(i + k) % n] == S[(j + k) % n]) k++;
+		else {
+			if(S[(i + k) % n] < S[(j + k) % n]) i = i + k + 1;
+			else j = j + k + 1;
+			
+			if(i == j) i++;
+			k = 0;
+		}
+	}
+	return min(i, j);
+}
+\end{lstlisting}
+
+\subsection{AC自动机}
+\begin{lstlisting}
+#include<bits/stdc++.h>
+using namespace std;
+const int MAXN = (int)1e6 + 5;
+
+char S[MAXN], T[MAXN];
+int n, cnt, trie[MAXN][30], fail[MAXN * 30], num[MAXN * 30];
+queue<int> Q;
+
+inline int Hash(char x) { return x - 'a' + 1; }
+
+void Trie(char* S) {
+	int cur = 1;
+	int len = strlen(S);
+	for(int i = 0; i < len; i++) {
+		int x = Hash(S[i]);
+		if(!trie[cur][x]) trie[cur][x] = ++cnt;
+		cur = trie[cur][x];
+	}
+	num[cur]++;
+}
+
+void GetFail() {
+	for(int i = 1; i <= 26; i++) trie[0][i] = 1;
+	Q.push(1);
+	fail[1] = 0;
+	while(!Q.empty()) {
+		int u = Q.front();
+		Q.pop();
+		int faFail = fail[u];
+		for(int i = 1; i <= 26; i++) {
+			int v = trie[u][i];
+			if(v) fail[v] = trie[faFail][i], Q.push(v);
+			else trie[u][i] = trie[faFail][i];
+		}
+	}
+}
+
+int main()
+{
+	scanf("%d", &n);
+	cnt = 1;
+	for(int i = 1; i <= n; i++) {
+		scanf("%s", S);
+		Trie(S);
+	}
+	GetFail(); 
+	scanf("%s", T);
+	
+	int cur = 1, ans = 0, len = strlen(T);
+	for(int i = 0; i < len; i++) {
+		cur = trie[cur][Hash(T[i])];
+		for(int t = cur; t && ~num[t]; t = fail[t]) ans += num[t], num[t] = -1;
+	}
+	printf("%d\n", ans);
+	return 0;
+}
+\end{lstlisting}
+
+\subsection{后缀数组}
+\begin{lstlisting}
+/* 注意常数 */
+//#pragma GCC optimize(2)
+#include<bits/stdc++.h>
+using namespace std;
+
+const int MAXN = 1e6 + 10;
+
+char S[MAXN];
+int n, m, sa[MAXN], rk[MAXN], oldrk[MAXN << 1], id[MAXN], px[MAXN], cnt[MAXN]; 
+
+bool cmp(int x, int y, int w) {
+	return oldrk[x] == oldrk[y] && oldrk[x + w] == oldrk[y + w];
+}
+
+void SuffixArray(char *s) {
+	// getSA	
+	n = strlen(s + 1);
+	int w, p, i, m = 300, k;
+	for(i = 1; i <= n; ++i) ++cnt[ rk[i] = s[i] ];
+	for(i = 1; i <= m; ++i) cnt[i] += cnt[i - 1];
+	for(i = n; i >= 1; --i) sa[ cnt[ rk[i] ]-- ] = i;
+	
+	for(w = 1; ; w <<= 1, m = p) {
+		for(p = 0, i = n; i > n - w; --i) id[++p] = i;
+		for(i = 1; i <= n; ++i) if(sa[i] > w) id[++p] = sa[i] - w;
+		for(i = 0; i <= m; ++i) cnt[i] = 0;
+		for(i = 1; i <= n; ++i) ++cnt[ px[i] = rk[ id[i] ] ];
+		for(i = 1; i <= m; ++i) cnt[i] += cnt[i - 1];
+		for(i = n; i >= 1; --i) sa[ cnt[ px[i] ]-- ] = id[i];
+		for(i = 1; i <= n; ++i) oldrk[i] = rk[i];
+		for(p = 0, i = 1; i <= n; ++i) rk[ sa[i] ] = cmp(sa[i], sa[i - 1], w) ? p : ++p;
+	
+		if(p == n) {
+			for(int i = 1; i <= n; ++i) sa[ rk[i] ] = i;	
+			break;
+		}
+	}
+	//for(int i = 1; i <= n; ++i) cout << sa[i] << " "; cout << "\n";
+	
+	//getHeight
+	for(i = 1, k = 0; i <= n; ++i) {
+		if(rk[i] == 0) continue;
+		if(k) --k;
+		while(S[i + k] == S[ sa[ rk[i] - 1 ] + k ]) ++k;
+		height[ rk[i] ] = k;
+	}
+}
+
+signed main()
+{
+	ios::sync_with_stdio(false); cin.tie(0); cout.tie(0);
+	cin >> S + 1;
+	SuffixArray(S);
+	return 0;
+}
+
+\end{lstlisting}
+
+\subsection{后缀自动机}
+\begin{lstlisting}
+#include<bits/stdc++.h>
+#pragma GCC optimize("-Ofast")
+using namespace std;
+const int MAXN = (int)4e5 + 5;
+
+struct state {
+	int len, link, size;
+	int next[30];
+}st[MAXN << 1];
+
+int sz, last, n, p, q;
+long long f[MAXN];
+char s[MAXN];
+
+void init() {
+	for(int i = 0; i < sz; i++) {
+		for(int j = 0; j < 26; j++) st[i].next[j] = 0;
+		st[i].len = st[i].link = st[i].size = 0;
+	}
+	sz = 0;
+	
+	st[0].len = 0;
+	st[0].link = -1;
+	sz++;
+	last = 0; 
+}
+
+void extend(int c) {
+	int cur = sz++;
+	st[cur].size = 1;
+	st[cur].len = st[last].len + 1;
+	int p = last;
+	while(p != -1 && !st[p].next[c]) {
+		st[p].next[c] = cur;
+		p = st[p].link;
+	} 
+	if(p == -1) st[cur].link = 0;
+	else {
+		int q = st[p].next[c];
+		if(st[p].len + 1 == st[q].len) st[cur].link = q;
+		else {
+			int clone = sz++;
+			st[clone].len = st[p].len + 1;
+			for(int i = 0; i < 26; i++) st[clone].next[i] = st[q].next[i];
+			st[clone].link = st[q].link;
+			while(p != -1 && st[p].next[c] == q) {
+				st[p].next[c] = clone;
+				p = st[p].link;
+			}
+			st[q].link = st[cur].link = clone;
+		}
+	}
+	last = cur;
+}
+
+\end{lstlisting}
